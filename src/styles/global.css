@@ -153,3 +153,22 @@ hr {
 	/* added line to stop words getting smushed together (as they go onto separate lines and some screen readers do not understand line feeds as a space */
 	white-space: nowrap;
 }
+
+.under-construction-banner {
+  background: linear-gradient(90deg, #f59e0b, #f87171);
+  color: white;
+  text-align: center;
+  font-weight: bold;
+  padding: 1rem 0;
+  font-size: 1.25rem;
+  border-bottom: 4px solid #ef4444;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
