@@ -1,0 +1,25 @@
+---
+const message = "Pardon our dust. This site is under construction.";
+---
+
+<div class="under-construction-wrapper">
+  <div class="under-construction-banner">
+    <!-- Overlay container -->
+    <div class="banner-content">
+      <div class="banner-text">
+        <span class="construction-icon">⚠️🚧</span>
+        <span class="message">{message}</span>
+      </div>
+      <button
+        class="dismiss-btn"
+        onclick="this.closest('.under-construction-wrapper').style.display='none'; document.getElementById('banner-spacer').style.display='none';"
+        aria-label="Close banner"
+      >
+        ✖
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Spacer to push content down -->
+<div id="banner-spacer"></div>

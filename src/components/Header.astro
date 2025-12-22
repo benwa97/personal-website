@@ -1,13 +1,11 @@
 ---
 import { SITE_TITLE } from '../consts';
 import HeaderLink from './HeaderLink.astro';
+import ConstructionBanner from './UnderConstructionBanner.astro'
 ---
 
 <header>
-	<div class="under-construction-banner">
-	   ⚠️🚧 Pardon our dust. Under construction. 🚧⚠️
-	   <button onclick="this.parentElement.style.display='none'">Close</button>
-	</div>
+	<ConstructionBanner />
 	<nav>
 		<h2><a href="/">benwa.dev</a></h2>
 		<div class="internal-links">
