@@ -7,7 +7,12 @@ import ConstructionBanner from './UnderConstructionBanner.astro'
 <header>
 	<ConstructionBanner />
 	<nav>
-		<h2><a href="/">benwa.dev</a></h2>
+		<h2>
+			<a href="/">
+				<img src="/bitmojiHeadshot.png" alt="Logo" class="site-logo" />
+				benwa.dev
+			</a>
+		</h2>
 		<div class="internal-links">
 			<HeaderLink href="/">Home</HeaderLink>
 			<HeaderLink href="/about">About</HeaderLink>
@@ -29,7 +34,14 @@ import ConstructionBanner from './UnderConstructionBanner.astro'
 
 	h2 a,
 	h2 a.active {
+		display: flex;
+  		align-items: center; 
 		text-decoration: none;
+	}
+	.site-logo {
+		width: 38px; 
+		height: 38px;
+		margin-right: 0.5em;
 	}
 	nav {
 		display: flex;
