@@ -69,7 +69,14 @@
   <section class="balance-panel" id="flow-balance-panel" aria-label="Inflow and outflow balance">
     <div class="panel-heading">
       <h2>Flow Balance</h2>
-      <span class="trend-badge" id="trend-badge">&mdash;</span>
+    </div>
+
+    <div class="balance-hero">
+      <div class="trend-icon" id="trend-icon">&mdash;</div>
+      <div class="balance-hero-text">
+        <p class="balance-hero-label" id="trend-label">Loading&hellip;</p>
+        <p class="balance-hero-value"><span id="value-net-flow">&mdash;</span><span class="gauge-unit">cfs net</span></p>
+      </div>
     </div>
 
     <div class="flow-bars">
@@ -86,6 +93,14 @@
     </div>
 
     <p class="balance-summary" id="balance-summary">&mdash;</p>
+
+    <div class="sparkline-block">
+      <p class="sparkline-label">Net flow, last 7 days <span class="sparkline-hint">(above the line = gaining, below = losing)</span></p>
+      <div class="sparkline-frame">
+        <canvas id="chart-netflow" height="64"></canvas>
+      </div>
+    </div>
+
     <p class="balance-caveat">
       Inflow is estimated from Willow Reservoir's release one dam upstream &mdash;
       it doesn't account for other tributaries, precipitation, evaporation, or
@@ -93,6 +108,7 @@
       precise forecast.
     </p>
   </section>
+
 
   <section class="gauge-row" aria-label="Current readings">
     <article class="gauge-plate" id="gauge-head">

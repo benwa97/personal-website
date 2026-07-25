@@ -187,27 +187,100 @@ function computeFlowBalance() {
   };
 }
 
+function computeNetFlowSeries(days) {
+  const riceRows = state.data.rice || [];
+  const willowRows = state.data.willow || [];
+  if (riceRows.length === 0 || willowRows.length === 0) return [];
+
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const relevant = riceRows.filter((r) => r.datetime.getTime() >= cutoff);
+
+  let wi = 0; // both arrays are sorted ascending by datetime
+  const series = [];
+  for (const r of relevant) {
+    while (wi + 1 < willowRows.length && willowRows[wi + 1].datetime <= r.datetime) wi++;
+    const w = willowRows[wi];
+    if (!w || w.datetime > r.datetime) continue;
+    if (r.gate_flow === null || w.gate_flow === null) continue;
+    series.push({ x: r.datetime, y: w.gate_flow - r.gate_flow });
+  }
+  return series;
+}
+
+let netFlowChart = null;
+
+function renderNetFlowSparkline() {
+  const canvas = document.getElementById("chart-netflow");
+  if (!canvas) return;
+
+  if (netFlowChart) {
+    netFlowChart.destroy();
+    netFlowChart = null;
+  }
+
+  const series = computeNetFlowSeries(7);
+  if (series.length < 2) return; // not enough points to draw a meaningful line
+
+  const moss = "#4B7F52";
+  const rust = "#A13D2E";
+  const bothPositive = (c) => c.p0.parsed.y >= 0 && c.p1.parsed.y >= 0;
+  const bothNegative = (c) => c.p0.parsed.y < 0 && c.p1.parsed.y < 0;
+
+  netFlowChart = new Chart(canvas.getContext("2d"), {
+    type: "line",
+    data: {
+      datasets: [
+        {
+          data: series,
+          borderWidth: 1.75,
+          pointRadius: 0,
+          tension: 0.2,
+          fill: { target: { value: 0 } },
+          segment: {
+            borderColor: (c) => (bothPositive(c) ? moss : bothNegative(c) ? rust : undefined),
+            backgroundColor: (c) => (bothPositive(c) ? moss + "26" : rust + "26"),
+          },
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: {
+        x: { type: "time", display: false },
+        y: { display: false },
+      },
+    },
+  });
+}
+
 function renderFlowBalance() {
   const panel = document.getElementById("flow-balance-panel");
 
-  if (state.activeDam !== "rice") {
-    panel.classList.add("is-hidden");
-    return;
-  }
-  panel.classList.remove("is-hidden");
+  // Native `hidden` attribute rather than a CSS class -- avoids any
+  // dependency on stylesheet load order/specificity for something this
+  // important to actually hide.
+  panel.hidden = state.activeDam !== "rice";
+  if (panel.hidden) return;
 
   const fb = computeFlowBalance();
-  const badge = document.getElementById("trend-badge");
-  badge.classList.remove("rising", "falling", "steady");
+  const icon = document.getElementById("trend-icon");
+  const trendLabel = document.getElementById("trend-label");
+  icon.classList.remove("rising", "falling", "steady");
 
   if (!fb) {
-    badge.textContent = "\u2014";
+    icon.textContent = "\u2014";
+    trendLabel.textContent = "Not enough data yet";
+    document.getElementById("value-net-flow").textContent = "\u2014";
     document.getElementById("bar-inflow").style.width = "0%";
     document.getElementById("bar-outflow").style.width = "0%";
     document.getElementById("value-inflow").textContent = "\u2014";
     document.getElementById("value-outflow-balance").textContent = "\u2014";
     document.getElementById("balance-summary").textContent =
       "Not enough data yet to compare inflow and outflow.";
+    renderNetFlowSparkline();
     return;
   }
 
@@ -218,12 +291,16 @@ function renderFlowBalance() {
   document.getElementById("value-outflow-balance").textContent = `${fmt0(fb.outflow)} cfs`;
 
   const trendMeta = {
-    rising: { arrow: "\u25B2", label: "Rising" },
-    falling: { arrow: "\u25BC", label: "Falling" },
-    steady: { arrow: "\u25CF", label: "Steady" },
+    rising: { arrow: "\u25B2", label: "Level rising" },
+    falling: { arrow: "\u25BC", label: "Level falling" },
+    steady: { arrow: "\u25CF", label: "Level steady" },
   }[fb.trend];
-  badge.classList.add(fb.trend);
-  badge.textContent = `${trendMeta.arrow} ${trendMeta.label}`;
+  icon.classList.add(fb.trend);
+  icon.textContent = trendMeta.arrow;
+  trendLabel.textContent = trendMeta.label;
+
+  const netSign = fb.netFlow >= 0 ? "+" : "\u2212";
+  document.getElementById("value-net-flow").textContent = `${netSign}${fmt0(Math.abs(fb.netFlow))}`;
 
   let pctText = "Inflow and outflow are matched";
   if (fb.pctDiff !== null && Math.abs(fb.netFlow) >= FLOW_DEADBAND_CFS) {
@@ -232,9 +309,9 @@ function renderFlowBalance() {
         ? `Outflow is ${fmt1(Math.abs(fb.pctDiff))}% higher than inflow`
         : `Inflow is ${fmt1(Math.abs(fb.pctDiff))}% higher than outflow`;
   }
-  const netSign = fb.netFlow >= 0 ? "+" : "\u2212";
-  document.getElementById("balance-summary").textContent =
-    `${pctText} \u00b7 net ${netSign}${fmt0(Math.abs(fb.netFlow))} cfs`;
+  document.getElementById("balance-summary").textContent = pctText;
+
+  renderNetFlowSparkline();
 }
 
 function renderTable(key) {
