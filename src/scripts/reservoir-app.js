@@ -20,7 +20,7 @@ const SOURCES = {
 };
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // re-check the API every 5 minutes
-const SYNC_STALE_AFTER_MS = 45 * 60 * 1000; // flag as stale if we haven't synced with WVIC in 45min (3 missed 15-min cycles)
+const SYNC_STALE_AFTER_MS = 60 * 60 * 1000; // flag as stale if we haven't synced with WVIC in 60min (3 missed 20-min cycles)
 
 const state = {
   activeDam: "rice",
