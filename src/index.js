@@ -247,6 +247,14 @@ async function scrapeDam(env, key) {
 
   const scrapeTimeIso = new Date().toISOString();
   const result = await upsertReadings(env, key, readings, dam.max_elevation_ft, scrapeTimeIso);
+
+  // Distinct from the readings themselves: this is "when did we last
+  // successfully reach WVIC's site and parse it", updated on every
+  // successful scrape whether or not WVIC had published anything new.
+  // Only written on success -- if scraping starts failing, this value
+  // freezes at the last known-good sync rather than lying about it.
+  await env.WVIC_DATA.put(`last_synced:${key}`, scrapeTimeIso);
+
   return { dam: key, ...result };
 }
 

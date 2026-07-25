@@ -20,12 +20,13 @@ const SOURCES = {
 };
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // re-check the API every 5 minutes
-const STALE_AFTER_MS = 3 * 60 * 60 * 1000; // flag as stale if latest reading is >3h old
+const SYNC_STALE_AFTER_MS = 45 * 60 * 1000; // flag as stale if we haven't synced with WVIC in 45min (3 missed 15-min cycles)
 
 const state = {
   activeDam: "rice",
   range: "7",
   data: {}, // dam key -> array of row objects
+  lastSynced: {}, // dam key -> Date | null (when we last successfully reached WVIC)
 };
 
 let levelChart = null;
@@ -53,7 +54,8 @@ async function loadDam(key) {
   const res = await fetch(`/api/reservoir?dam=${key}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Could not load data for ${key} (${res.status})`);
   const raw = await res.json();
-  return raw
+
+  const rows = (raw.readings || [])
     .map((r) => ({
       datetime: parseSiteDatetime(r.datetime),
       head_level: toNumber(r.head_level),
@@ -63,6 +65,10 @@ async function loadDam(key) {
     }))
     .filter((r) => r.datetime !== null)
     .sort((a, b) => a.datetime - b.datetime);
+
+  const lastSynced = raw.last_synced ? new Date(raw.last_synced) : null;
+
+  return { rows, lastSynced };
 }
 
 async function loadAll() {
@@ -71,8 +77,12 @@ async function loadAll() {
   );
   Object.keys(SOURCES).forEach((k, idx) => {
     const r = results[idx];
-    if (r.status === "fulfilled") state.data[k] = r.value;
-    else console.error(`[reservoir-gauge] failed to load ${k}:`, r.reason);
+    if (r.status === "fulfilled") {
+      state.data[k] = r.value.rows;
+      state.lastSynced[k] = r.value.lastSynced;
+    } else {
+      console.error(`[reservoir-gauge] failed to load ${k}:`, r.reason);
+    }
   });
 }
 
@@ -117,22 +127,30 @@ function renderGauges(key) {
   document.getElementById("value-head").textContent = latest ? fmt2(latest.head_level) : "\u2014";
   document.getElementById("value-flow").textContent = latest ? fmt0(latest.gate_flow) : "\u2014";
   document.getElementById("value-fbm").textContent = latest ? fmt2(latest.feet_below_maximum) : "\u2014";
+
+  // "As of" = the most recent hour WVIC itself has published.
   document.getElementById("as-of-time").textContent = latest ? fmtDateTime(latest.datetime) : "\u2014";
 
+  // "Synced" = when WE last successfully checked WVIC's site, which can
+  // be more recent than the data itself if WVIC hasn't published a new
+  // hour yet -- these are deliberately two different clocks.
+  const syncedAt = state.lastSynced[key];
   const dot = document.getElementById("freshness-dot");
   const label = document.getElementById("freshness-label");
-  if (!latest) {
+
+  if (!syncedAt) {
     dot.classList.add("is-stale");
-    label.textContent = "No data available";
+    label.textContent = "Sync status unknown";
     return;
   }
-  const age = Date.now() - latest.datetime.getTime();
-  if (age > STALE_AFTER_MS) {
+
+  const age = Date.now() - syncedAt.getTime();
+  if (age > SYNC_STALE_AFTER_MS) {
     dot.classList.add("is-stale");
-    label.textContent = `Last reading ${fmtDateTime(latest.datetime)} — may be stale`;
+    label.textContent = `Last synced ${fmtDateTime(syncedAt)} — may be stuck`;
   } else {
     dot.classList.remove("is-stale");
-    label.textContent = `Updated ${fmtDateTime(latest.datetime)}`;
+    label.textContent = `Synced ${fmtDateTime(syncedAt)}`;
   }
 }
 

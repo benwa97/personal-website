@@ -44,13 +44,21 @@ export async function onRequestGet(context) {
     );
   }
 
-  const data = await env.WVIC_DATA.get(`readings:${dam}`);
+  const [readingsJson, lastSynced] = await Promise.all([
+    env.WVIC_DATA.get(`readings:${dam}`),
+    env.WVIC_DATA.get(`last_synced:${dam}`),
+  ]);
 
-  return new Response(data || "[]", {
+  const body = JSON.stringify({
+    readings: readingsJson ? JSON.parse(readingsJson) : [],
+    last_synced: lastSynced || null,
+  });
+
+  return new Response(body, {
     headers: {
       "content-type": "application/json",
-      // Short cache since the underlying data only changes hourly, but
-      // keep it brief so a fresh scrape shows up quickly.
+      // Short cache since the underlying data changes as often as every
+      // 15 minutes, but keep it brief so a fresh scrape shows up quickly.
       "cache-control": "public, max-age=60",
     },
   });
