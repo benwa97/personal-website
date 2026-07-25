@@ -136,6 +136,107 @@ function renderGauges(key) {
   }
 }
 
+// ---------------------------------------------------------------
+// Flow balance (Rice only -- Willow's release is Rice's inflow;
+// there's no equivalent upstream data to do this for Willow itself)
+// ---------------------------------------------------------------
+
+const FLOW_DEADBAND_CFS = 1; // ignore differences smaller than this as "steady"
+
+function computeFlowBalance() {
+  const riceRows = state.data.rice || [];
+  const willowRows = state.data.willow || [];
+  if (riceRows.length === 0 || willowRows.length === 0) return null;
+
+  const riceLatest = riceRows[riceRows.length - 1];
+
+  // Willow's release becomes Rice's inflow. Match the most recent Willow
+  // reading at or before Rice's latest timestamp (both are scraped in the
+  // same hourly run, so these normally line up to the same hour; this
+  // just guards against the rare case where one dam's page hadn't
+  // updated yet at scrape time).
+  let willowMatch = null;
+  for (let i = willowRows.length - 1; i >= 0; i--) {
+    if (willowRows[i].datetime <= riceLatest.datetime) {
+      willowMatch = willowRows[i];
+      break;
+    }
+  }
+  if (!willowMatch) willowMatch = willowRows[willowRows.length - 1];
+
+  const inflow = willowMatch.gate_flow;
+  const outflow = riceLatest.gate_flow;
+  if (inflow === null || outflow === null) return null;
+
+  const netFlow = inflow - outflow; // positive = gaining water, negative = losing
+  const pctDiff = inflow !== 0 ? ((outflow - inflow) / inflow) * 100 : null;
+
+  let trend = "steady";
+  if (Math.abs(netFlow) >= FLOW_DEADBAND_CFS) {
+    trend = netFlow > 0 ? "rising" : "falling";
+  }
+
+  return {
+    inflow,
+    outflow,
+    netFlow,
+    pctDiff,
+    trend,
+    inflowTime: willowMatch.datetime,
+    outflowTime: riceLatest.datetime,
+  };
+}
+
+function renderFlowBalance() {
+  const panel = document.getElementById("flow-balance-panel");
+
+  if (state.activeDam !== "rice") {
+    panel.classList.add("is-hidden");
+    return;
+  }
+  panel.classList.remove("is-hidden");
+
+  const fb = computeFlowBalance();
+  const badge = document.getElementById("trend-badge");
+  badge.classList.remove("rising", "falling", "steady");
+
+  if (!fb) {
+    badge.textContent = "\u2014";
+    document.getElementById("bar-inflow").style.width = "0%";
+    document.getElementById("bar-outflow").style.width = "0%";
+    document.getElementById("value-inflow").textContent = "\u2014";
+    document.getElementById("value-outflow-balance").textContent = "\u2014";
+    document.getElementById("balance-summary").textContent =
+      "Not enough data yet to compare inflow and outflow.";
+    return;
+  }
+
+  const maxVal = Math.max(fb.inflow, fb.outflow, 1);
+  document.getElementById("bar-inflow").style.width = `${(fb.inflow / maxVal) * 100}%`;
+  document.getElementById("bar-outflow").style.width = `${(fb.outflow / maxVal) * 100}%`;
+  document.getElementById("value-inflow").textContent = `${fmt0(fb.inflow)} cfs`;
+  document.getElementById("value-outflow-balance").textContent = `${fmt0(fb.outflow)} cfs`;
+
+  const trendMeta = {
+    rising: { arrow: "\u25B2", label: "Rising" },
+    falling: { arrow: "\u25BC", label: "Falling" },
+    steady: { arrow: "\u25CF", label: "Steady" },
+  }[fb.trend];
+  badge.classList.add(fb.trend);
+  badge.textContent = `${trendMeta.arrow} ${trendMeta.label}`;
+
+  let pctText = "Inflow and outflow are matched";
+  if (fb.pctDiff !== null && Math.abs(fb.netFlow) >= FLOW_DEADBAND_CFS) {
+    pctText =
+      fb.pctDiff > 0
+        ? `Outflow is ${fmt1(Math.abs(fb.pctDiff))}% higher than inflow`
+        : `Inflow is ${fmt1(Math.abs(fb.pctDiff))}% higher than outflow`;
+  }
+  const netSign = fb.netFlow >= 0 ? "+" : "\u2212";
+  document.getElementById("balance-summary").textContent =
+    `${pctText} \u00b7 net ${netSign}${fmt0(Math.abs(fb.netFlow))} cfs`;
+}
+
 function renderTable(key) {
   const rows = filteredRows(key).slice(-24).reverse();
   const tbody = document.getElementById("readings-tbody");
@@ -286,6 +387,7 @@ function renderCharts(key) {
 
 function renderAll() {
   renderGauges(state.activeDam);
+  renderFlowBalance();
   renderCharts(state.activeDam);
   renderTable(state.activeDam);
 }

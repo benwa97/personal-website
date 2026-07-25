@@ -267,11 +267,121 @@ main {
 }
 
 .as-of {
-  margin: 0 0 30px;
+  margin: 0 0 20px;
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--ink-soft);
 }
+
+/* ------------------------------------------------------------------
+   Flow Balance panel — inflow vs outflow, and which way the lake is
+   trending. Twin flow-bars read like a pair of instrument gauges
+   sitting side by side; the trend badge is the single loudest color
+   accent on the page, since it's the answer to the question that
+   actually matters day to day.
+------------------------------------------------------------------- */
+
+.balance-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--radius);
+  padding: 20px 22px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-plate);
+}
+
+.trend-badge {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--panel-line);
+  color: var(--ink-soft);
+}
+
+.trend-badge.falling {
+  background: rgba(161, 61, 46, 0.12);
+  color: var(--rust);
+}
+
+.trend-badge.rising {
+  background: var(--moss-dim);
+  color: var(--moss);
+}
+
+.trend-badge.steady {
+  background: var(--river-dim);
+  color: var(--river);
+}
+
+.flow-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0 14px;
+}
+
+.flow-bar-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 76px;
+  align-items: center;
+  gap: 12px;
+}
+
+.flow-bar-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.flow-bar-sublabel {
+  display: block;
+  font-size: 10.5px;
+  opacity: 0.75;
+}
+
+.flow-bar-track {
+  height: 10px;
+  background: var(--grid);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.flow-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  width: 0%;
+  transition: width var(--transition-base, 220ms) ease-out;
+}
+
+.flow-bar-fill.inflow { background: var(--river); }
+.flow-bar-fill.outflow { background: var(--brass); }
+
+.flow-bar-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-align: right;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.balance-summary {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.balance-caveat {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.balance-panel.is-hidden { display: none; }
 
 /* ------------------------------------------------------------------
    Chart panels — hydrograph paper

@@ -64,6 +64,36 @@
 
 <main id="main">
 
+  <p class="as-of">Reading as of <span id="as-of-time">&mdash;</span></p>
+
+  <section class="balance-panel" id="flow-balance-panel" aria-label="Inflow and outflow balance">
+    <div class="panel-heading">
+      <h2>Flow Balance</h2>
+      <span class="trend-badge" id="trend-badge">&mdash;</span>
+    </div>
+
+    <div class="flow-bars">
+      <div class="flow-bar-row">
+        <span class="flow-bar-label">Inflow <span class="flow-bar-sublabel">(Willow release)</span></span>
+        <div class="flow-bar-track"><div class="flow-bar-fill inflow" id="bar-inflow"></div></div>
+        <span class="flow-bar-value" id="value-inflow">&mdash;</span>
+      </div>
+      <div class="flow-bar-row">
+        <span class="flow-bar-label">Outflow</span>
+        <div class="flow-bar-track"><div class="flow-bar-fill outflow" id="bar-outflow"></div></div>
+        <span class="flow-bar-value" id="value-outflow-balance">&mdash;</span>
+      </div>
+    </div>
+
+    <p class="balance-summary" id="balance-summary">&mdash;</p>
+    <p class="balance-caveat">
+      Inflow is estimated from Willow Reservoir's release one dam upstream &mdash;
+      it doesn't account for other tributaries, precipitation, evaporation, or
+      travel time between the two dams. Treat as directional guidance, not a
+      precise forecast.
+    </p>
+  </section>
+
   <section class="gauge-row" aria-label="Current readings">
     <article class="gauge-plate" id="gauge-head">
       <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
@@ -87,7 +117,6 @@
     </article>
   </section>
 
-  <p class="as-of">Reading as of <span id="as-of-time">&mdash;</span></p>
 
   <section class="chart-panel" aria-label="Head level and freeboard over time">
     <div class="panel-heading">
