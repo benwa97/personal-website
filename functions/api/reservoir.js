@@ -1,23 +1,8 @@
 /**
  * Cloudflare Pages Function.
  *
- * USE THIS if your Astro site is in the default "static" output mode
- * (no `@astrojs/cloudflare` SSR adapter in astro.config.mjs). Cloudflare
- * Pages automatically picks up anything under a top-level `functions/`
- * directory (next to your repo root, NOT inside `src/`) and serves it
- * as an API route, independent of the Astro build.
- *
- * This file -> served at: /api/reservoir
- *
- * If your Astro config DOES use the Cloudflare SSR adapter
- * (output: 'server' or 'hybrid' with @astrojs/cloudflare), Astro
- * generates its own `_worker.js` that takes over ALL routing, and this
- * `functions/` directory is ignored. Use
- * src/pages/api/reservoir.js (the Astro-endpoint version) instead, and
- * delete/ignore this file.
- *
  * Setup:
- *   1. Bind the same KV namespace used by wvic-scraper-worker to this
+ *   1. Bind the same KV namespace used by wvic-data-collector to this
  *      Pages project: Cloudflare dashboard -> your Pages project ->
  *      Settings -> Functions -> KV namespace bindings -> add binding
  *      named "WVIC_DATA" pointing at the same namespace ID.
@@ -57,8 +42,8 @@ export async function onRequestGet(context) {
   return new Response(body, {
     headers: {
       "content-type": "application/json",
-      // Short cache since the underlying data changes as often as every
-      // 15 minutes, but keep it brief so a fresh scrape shows up quickly.
+      // Short cache since the underlying data changes
+      // but keep it brief so a fresh collection shows up quickly.
       "cache-control": "public, max-age=60",
     },
   });

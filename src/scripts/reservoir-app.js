@@ -2,7 +2,7 @@
    Reservoir Gauge — reservoir-app.js
 
    Fetches JSON from /api/reservoir?dam=rice|willow (a Cloudflare Pages
-   Function backed by KV, populated hourly by wvic-scraper-worker) and
+   Function backed by KV, populated hourly by wvic-data-collector) and
    renders current readings, trend charts, and a recent-readings table.
 
    Chart.js is imported as a proper npm dependency (run `npm install
