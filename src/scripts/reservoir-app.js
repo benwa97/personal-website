@@ -1,13 +1,17 @@
 /* ------------------------------------------------------------------
-   Reservoir Gauge — app.js
+   Reservoir Gauge — reservoir-app.js
 
    Fetches JSON from /api/reservoir?dam=rice|willow (a Cloudflare Pages
    Function backed by KV, populated hourly by wvic-scraper-worker) and
    renders current readings, trend charts, and a recent-readings table.
 
-   No build step, no dependencies beyond Chart.js (loaded via CDN in
-   the page head).
+   Chart.js is imported as a proper npm dependency (run `npm install
+   chart.js` in the project root) and bundled by Astro/Vite at build
+   time -- no external CDN script tag, no runtime dependency on a
+   third-party host being reachable.
 ------------------------------------------------------------------- */
+
+import Chart from "chart.js/auto";
 
 const SOURCES = {
   rice: { label: "Rice Reservoir", color: "#2C6E7F" },

@@ -1,10 +1,11 @@
 ---
 // src/pages/reservoir.astro
 //
-// The gauge-station dashboard, ported into an Astro page. Styles and
-// the client-side script live in /public/reservoir/ (style.css,
-// app.js) and are referenced below as plain static assets -- no
-// Astro-specific build step needed for them.
+// The gauge-station dashboard, ported into an Astro page. Styles live
+// in /public/reservoir/style.css as a plain static asset; the
+// client-side logic lives in src/scripts/reservoir-app.js and is
+// bundled by Astro/Vite (imports Chart.js as an npm dependency rather
+// than loading it from a CDN at runtime).
 //
 // Data comes from /api/reservoir?dam=rice|willow, served by a
 // Cloudflare Pages Function (see functions/api/reservoir.js or
@@ -143,7 +144,6 @@
   </p>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<script src="/reservoir/app.js" is:inline></script>
+<script src="../scripts/reservoir-app.js"></script>
 </body>
 </html>
