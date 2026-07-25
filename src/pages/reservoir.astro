@@ -1,0 +1,149 @@
+---
+// src/pages/reservoir.astro
+//
+// The gauge-station dashboard, ported into an Astro page. Styles and
+// the client-side script live in /public/reservoir/ (style.css,
+// app.js) and are referenced below as plain static assets -- no
+// Astro-specific build step needed for them.
+//
+// Data comes from /api/reservoir?dam=rice|willow, served by a
+// Cloudflare Pages Function (see functions/api/reservoir.js or
+// src/pages/api/reservoir.js) reading from a KV namespace that
+// wvic-scraper-worker populates hourly.
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reservoir Gauge — Wisconsin Valley Reservoir Data</title>
+  <meta name="description" content="Hourly head level, gate flow, and freeboard readings for the Rice and Willow reservoirs, Wisconsin Valley Improvement Company.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/reservoir/style.css">
+</head>
+<body>
+
+<div class="paper-texture" aria-hidden="true"></div>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40" width="34" height="34">
+          <path d="M2 24 Q10 16 20 24 T38 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+          <path d="M2 31 Q10 23 20 31 T38 31" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity="0.55"/>
+          <path d="M6 12 L20 3 L34 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <div class="brand-text">
+        <p class="eyebrow">Wisconsin Valley Improvement Company</p>
+        <h1>Reservoir Gauge</h1>
+      </div>
+    </div>
+    <div class="freshness" id="freshness">
+      <span class="freshness-dot" id="freshness-dot" aria-hidden="true"></span>
+      <span id="freshness-label">Loading readings&hellip;</span>
+    </div>
+  </div>
+
+  <nav class="dam-tabs" role="tablist" aria-label="Select reservoir">
+    <button class="dam-tab" data-dam="rice" role="tab" aria-selected="true" id="tab-rice">
+      <span class="tab-index">01</span> Rice Reservoir
+    </button>
+    <button class="dam-tab" data-dam="willow" role="tab" aria-selected="false" id="tab-willow">
+      <span class="tab-index">02</span> Willow Reservoir
+    </button>
+  </nav>
+</header>
+
+<main id="main">
+
+  <section class="gauge-row" aria-label="Current readings">
+    <article class="gauge-plate" id="gauge-head">
+      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+      <p class="gauge-label">Head Level</p>
+      <p class="gauge-value"><span id="value-head">&mdash;</span><span class="gauge-unit">ft NGVD&nbsp;29</span></p>
+      <div class="gauge-ticks" aria-hidden="true"></div>
+    </article>
+
+    <article class="gauge-plate" id="gauge-flow">
+      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+      <p class="gauge-label">Gate Flow</p>
+      <p class="gauge-value"><span id="value-flow">&mdash;</span><span class="gauge-unit">cfs</span></p>
+      <div class="gauge-ticks" aria-hidden="true"></div>
+    </article>
+
+    <article class="gauge-plate accent" id="gauge-fbm">
+      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+      <p class="gauge-label">Feet Below Maximum</p>
+      <p class="gauge-value"><span id="value-fbm">&mdash;</span><span class="gauge-unit">ft</span></p>
+      <div class="gauge-ticks" aria-hidden="true"></div>
+    </article>
+  </section>
+
+  <p class="as-of">Reading as of <span id="as-of-time">&mdash;</span></p>
+
+  <section class="chart-panel" aria-label="Head level and freeboard over time">
+    <div class="panel-heading">
+      <h2>Head Level &amp; Freeboard</h2>
+      <div class="range-toggle" role="group" aria-label="Time range">
+        <button data-range="7" class="range-btn is-active">7d</button>
+        <button data-range="30" class="range-btn">30d</button>
+        <button data-range="all" class="range-btn">All</button>
+      </div>
+    </div>
+    <div class="chart-frame">
+      <canvas id="chart-level" height="280"></canvas>
+    </div>
+  </section>
+
+  <section class="chart-panel" aria-label="Gate flow over time">
+    <div class="panel-heading">
+      <h2>Gate Flow</h2>
+    </div>
+    <div class="chart-frame">
+      <canvas id="chart-flow" height="220"></canvas>
+    </div>
+  </section>
+
+  <section class="table-panel" aria-label="Recent readings table">
+    <div class="panel-heading">
+      <h2>Recent Readings</h2>
+    </div>
+    <div class="table-scroll">
+      <table id="readings-table">
+        <thead>
+          <tr>
+            <th>Date &amp; Time</th>
+            <th>Head Level</th>
+            <th>Gate Flow</th>
+            <th>Below Max</th>
+          </tr>
+        </thead>
+        <tbody id="readings-tbody">
+          <tr><td colspan="4" class="empty-row">Loading&hellip;</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <p>
+    Source data collected hourly from
+    <a href="https://www.wvic.com/Content/Data--Reports.cfm" target="_blank" rel="noopener">wvic.com</a>.
+    Authorized maximum elevations from WVIC's published Reservoir Reports.
+    Data marked provisional, subject to revision.
+  </p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="/reservoir/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,341 @@
+/* ------------------------------------------------------------------
+   Reservoir Gauge — app.js
+
+   Fetches JSON from /api/reservoir?dam=rice|willow (a Cloudflare Pages
+   Function backed by KV, populated hourly by wvic-scraper-worker) and
+   renders current readings, trend charts, and a recent-readings table.
+
+   No build step, no dependencies beyond Chart.js (loaded via CDN in
+   the page head).
+------------------------------------------------------------------- */
+
+const SOURCES = {
+  rice: { label: "Rice Reservoir", color: "#2C6E7F" },
+  willow: { label: "Willow Reservoir", color: "#4B7F52" },
+};
+
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // re-check the API every 5 minutes
+const STALE_AFTER_MS = 3 * 60 * 60 * 1000; // flag as stale if latest reading is >3h old
+
+const state = {
+  activeDam: "rice",
+  range: "7",
+  data: {}, // dam key -> array of row objects
+};
+
+let levelChart = null;
+let flowChart = null;
+
+function toNumber(v) {
+  if (v === undefined || v === null || v === "") return null;
+  const n = parseFloat(String(v).replace(/,/g, ""));
+  return Number.isNaN(n) ? null : n;
+}
+
+// Source datetimes look like "07/24/2026 20:00" (site's local time, no TZ).
+function parseSiteDatetime(s) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/.exec(s || "");
+  if (!m) return null;
+  const [, mo, d, y, h, mi] = m;
+  return new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi));
+}
+
+// ---------------------------------------------------------------
+// Data loading
+// ---------------------------------------------------------------
+
+async function loadDam(key) {
+  const res = await fetch(`/api/reservoir?dam=${key}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Could not load data for ${key} (${res.status})`);
+  const raw = await res.json();
+  return raw
+    .map((r) => ({
+      datetime: parseSiteDatetime(r.datetime),
+      head_level: toNumber(r.head_level),
+      gate_flow: toNumber(r.gate_flow),
+      feet_below_maximum: toNumber(r.feet_below_maximum),
+      last_updated: r.last_updated || "",
+    }))
+    .filter((r) => r.datetime !== null)
+    .sort((a, b) => a.datetime - b.datetime);
+}
+
+async function loadAll() {
+  const results = await Promise.allSettled(
+    Object.keys(SOURCES).map((k) => loadDam(k))
+  );
+  Object.keys(SOURCES).forEach((k, idx) => {
+    const r = results[idx];
+    if (r.status === "fulfilled") state.data[k] = r.value;
+    else console.error(`[reservoir-gauge] failed to load ${k}:`, r.reason);
+  });
+}
+
+// ---------------------------------------------------------------
+// Formatting helpers
+// ---------------------------------------------------------------
+
+const fmt1 = (n) => (n === null || n === undefined ? "\u2014" : n.toFixed(1));
+const fmt2 = (n) => (n === null || n === undefined ? "\u2014" : n.toFixed(2));
+const fmt0 = (n) => (n === null || n === undefined ? "\u2014" : Math.round(n).toString());
+
+function fmtDateTime(d) {
+  if (!d) return "\u2014";
+  return d.toLocaleString(undefined, {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+  });
+}
+
+function fmtTableDate(d) {
+  if (!d) return "\u2014";
+  return d.toLocaleString(undefined, {
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+}
+
+// ---------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------
+
+function filteredRows(key) {
+  const rows = state.data[key] || [];
+  if (state.range === "all") return rows;
+  const days = Number(state.range);
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return rows.filter((r) => r.datetime.getTime() >= cutoff);
+}
+
+function renderGauges(key) {
+  const rows = state.data[key] || [];
+  const latest = rows[rows.length - 1];
+
+  document.getElementById("value-head").textContent = latest ? fmt2(latest.head_level) : "\u2014";
+  document.getElementById("value-flow").textContent = latest ? fmt0(latest.gate_flow) : "\u2014";
+  document.getElementById("value-fbm").textContent = latest ? fmt2(latest.feet_below_maximum) : "\u2014";
+  document.getElementById("as-of-time").textContent = latest ? fmtDateTime(latest.datetime) : "\u2014";
+
+  const dot = document.getElementById("freshness-dot");
+  const label = document.getElementById("freshness-label");
+  if (!latest) {
+    dot.classList.add("is-stale");
+    label.textContent = "No data available";
+    return;
+  }
+  const age = Date.now() - latest.datetime.getTime();
+  if (age > STALE_AFTER_MS) {
+    dot.classList.add("is-stale");
+    label.textContent = `Last reading ${fmtDateTime(latest.datetime)} — may be stale`;
+  } else {
+    dot.classList.remove("is-stale");
+    label.textContent = `Updated ${fmtDateTime(latest.datetime)}`;
+  }
+}
+
+function renderTable(key) {
+  const rows = filteredRows(key).slice(-24).reverse();
+  const tbody = document.getElementById("readings-tbody");
+  tbody.innerHTML = "";
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="empty-row">No readings in this range.</td></tr>';
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  rows.forEach((r) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${fmtTableDate(r.datetime)}</td>
+      <td>${fmt2(r.head_level)}</td>
+      <td>${fmt0(r.gate_flow)}</td>
+      <td>${fmt2(r.feet_below_maximum)}</td>
+    `;
+    frag.appendChild(tr);
+  });
+  tbody.appendChild(frag);
+}
+
+function renderCharts(key) {
+  const rows = filteredRows(key);
+  const color = SOURCES[key].color;
+  const labels = rows.map((r) => r.datetime);
+
+  const levelCtx = document.getElementById("chart-level").getContext("2d");
+  const flowCtx = document.getElementById("chart-flow").getContext("2d");
+
+  if (levelChart) levelChart.destroy();
+  if (flowChart) flowChart.destroy();
+
+  const gridColor = "rgba(22,50,58,0.08)";
+  const tickColor = "#4C625F";
+  const fontFamily = "'IBM Plex Mono', monospace";
+
+  levelChart = new Chart(levelCtx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Head Level (ft)",
+          data: rows.map((r) => r.head_level),
+          borderColor: color,
+          backgroundColor: color + "22",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.15,
+          fill: true,
+          yAxisID: "yLevel",
+        },
+        {
+          label: "Below Maximum (ft)",
+          data: rows.map((r) => r.feet_below_maximum),
+          borderColor: "#B5793C",
+          borderWidth: 1.5,
+          borderDash: [3, 3],
+          pointRadius: 0,
+          tension: 0.15,
+          yAxisID: "yFbm",
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: {
+          position: "top",
+          align: "end",
+          labels: { color: tickColor, font: { family: fontFamily, size: 11 }, boxWidth: 12 },
+        },
+        tooltip: {
+          titleFont: { family: fontFamily },
+          bodyFont: { family: fontFamily },
+        },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: state.range === "7" ? "day" : "week" },
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { family: fontFamily, size: 10 } },
+        },
+        yLevel: {
+          position: "left",
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { family: fontFamily, size: 10 } },
+          title: { display: true, text: "ft NGVD 29", color: tickColor, font: { family: fontFamily, size: 10 } },
+        },
+        yFbm: {
+          position: "right",
+          reverse: true,
+          grid: { display: false },
+          ticks: { color: tickColor, font: { family: fontFamily, size: 10 } },
+          title: { display: true, text: "ft below max", color: tickColor, font: { family: fontFamily, size: 10 } },
+        },
+      },
+    },
+  });
+
+  flowChart = new Chart(flowCtx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Gate Flow (cfs)",
+          data: rows.map((r) => r.gate_flow),
+          borderColor: "#B5793C",
+          backgroundColor: "#B5793C22",
+          borderWidth: 2,
+          stepped: true,
+          pointRadius: 0,
+          fill: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { titleFont: { family: fontFamily }, bodyFont: { family: fontFamily } },
+      },
+      scales: {
+        x: {
+          type: "time",
+          time: { unit: state.range === "7" ? "day" : "week" },
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { family: fontFamily, size: 10 } },
+        },
+        y: {
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { family: fontFamily, size: 10 } },
+          title: { display: true, text: "cfs", color: tickColor, font: { family: fontFamily, size: 10 } },
+        },
+      },
+    },
+  });
+}
+
+function renderAll() {
+  renderGauges(state.activeDam);
+  renderCharts(state.activeDam);
+  renderTable(state.activeDam);
+}
+
+// ---------------------------------------------------------------
+// Interaction wiring
+// ---------------------------------------------------------------
+
+function wireTabs() {
+  document.querySelectorAll(".dam-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".dam-tab").forEach((b) => b.setAttribute("aria-selected", "false"));
+      btn.setAttribute("aria-selected", "true");
+      state.activeDam = btn.dataset.dam;
+      renderAll();
+    });
+  });
+}
+
+function wireRangeToggle() {
+  document.querySelectorAll(".range-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".range-btn").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+      state.range = btn.dataset.range;
+      renderCharts(state.activeDam);
+      renderTable(state.activeDam);
+    });
+  });
+}
+
+// ---------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------
+
+async function init() {
+  wireTabs();
+  wireRangeToggle();
+  try {
+    await loadAll();
+    renderAll();
+  } catch (err) {
+    console.error(err);
+    document.getElementById("freshness-label").textContent = "Failed to load data";
+    document.getElementById("freshness-dot").classList.add("is-stale");
+  }
+
+  setInterval(async () => {
+    try {
+      await loadAll();
+      renderAll();
+    } catch (err) {
+      console.error("[reservoir-gauge] refresh failed:", err);
+    }
+  }, REFRESH_INTERVAL_MS);
+}
+
+document.addEventListener("DOMContentLoaded", init);
