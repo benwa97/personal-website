@@ -587,17 +587,23 @@ function renderCharts(key) {
       labels,
       datasets: [
         {
-          // Primary series -- below-max is the number an average visitor
-          // actually cares about ("how close is it to the top?"), so it
-          // gets the solid filled line and the primary (left) axis.
-          label: "Below Maximum (ft)",
-          data: rows.map((r) => r.feet_below_maximum),
+          // Primary series -- this is "how full is the lake" in the form
+          // an average visitor actually reads at a glance, so it gets the
+          // solid filled line and the primary (left) axis. It's really
+          // feet-below-maximum negated (0 = at max, -3 = 3ft below), which
+          // makes the line move the same direction as the lake filling
+          // without needing a reversed axis -- but it's presented here as
+          // the water level itself, not framed around the max line.
+          label: "Water Level (ft below max)",
+          data: rows.map((r) => (r.feet_below_maximum === null ? null : -r.feet_below_maximum)),
           borderColor: "#B5793C",
           backgroundColor: "#B5793C22",
           borderWidth: 2,
           pointRadius: 0,
           tension: 0.15,
-          fill: true,
+          // Fill down to the bottom of the axis so it reads like a tank
+          // filling up, not "headroom left at the top."
+          fill: "start",
           yAxisID: "yFbm",
         },
         {
@@ -636,12 +642,9 @@ function renderCharts(key) {
         },
         yFbm: {
           position: "left",
-          // Reversed so it still moves the same visual direction as head
-          // level (rising level = shrinking below-max = line goes up).
-          reverse: true,
           grid: { color: gridColor },
           ticks: { color: tickColor, font: { family: fontFamily, size: 10 } },
-          title: { display: true, text: "ft below max", color: tickColor, font: { family: fontFamily, size: 10 } },
+          title: { display: true, text: "water level (ft below max)", color: tickColor, font: { family: fontFamily, size: 10 } },
         },
         yLevel: {
           position: "right",
