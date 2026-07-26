@@ -70,6 +70,11 @@ const today = new Date();
 
   <p class="as-of">WVIC data as of <span id="as-of-time">&mdash;</span></p>
 
+  <div class="level-alert" id="level-alert" role="alert" hidden>
+    <span class="level-alert-icon" aria-hidden="true">&#9888;</span>
+    <span id="level-alert-text">&mdash;</span>
+  </div>
+
   <section class="gauge-row" aria-label="Current readings">
     <article class="gauge-plate accent" id="gauge-fbm">
       <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>

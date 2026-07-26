@@ -131,6 +131,7 @@ function filteredRows(key) {
 }
 
 const LEVEL_DEADBAND_FT = 0.05; // ignore changes smaller than this as "steady"
+const LEVEL_ALERT_DROP_FT = 0.14; // ~1ft/week pace sustained over 24h
 
 const TREND_WINDOWS = [
   { key: "24h", hours: 24 },
@@ -351,6 +352,20 @@ function renderLevelTrend(key) {
   detail.textContent = `${sign}${fmt2(Math.abs(lt.deltaHead))} ft over 24h`;
 }
 
+function renderLevelAlert(key) {
+  const rows = state.data[key] || [];
+  const banner = document.getElementById("level-alert");
+  const text = document.getElementById("level-alert-text");
+
+  const lt = computeTrendForWindow(rows, 24);
+  const isSharpDrop = lt && lt.trend === "falling" && Math.abs(lt.deltaHead) >= LEVEL_ALERT_DROP_FT;
+
+  banner.hidden = !isSharpDrop;
+  if (isSharpDrop) {
+    text.textContent = `Level dropping sharply \u2014 down ${fmt2(Math.abs(lt.deltaHead))} ft in the last 24 hours.`;
+  }
+}
+
 function renderTrendForecastRow(windowKey, result) {
   const arrow = document.getElementById(`trend-fc-${windowKey}-arrow`);
   const status = document.getElementById(`trend-fc-${windowKey}-status`);
@@ -396,6 +411,7 @@ function renderGauges(key) {
   const latest = rows[rows.length - 1];
 
   renderLevelTrend(key);
+  renderLevelAlert(key);
   document.getElementById("value-flow").textContent = latest ? fmt0(latest.gate_flow) : "\u2014";
   document.getElementById("value-fbm").textContent =
     latest && latest.feet_below_maximum !== null ? fmt2(-latest.feet_below_maximum) : "\u2014";
