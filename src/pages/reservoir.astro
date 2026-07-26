@@ -2,15 +2,19 @@
 // src/pages/reservoir.astro
 //
 // The gauge-station dashboard, ported into an Astro page. Styles live
-// in /public/reservoir/style.css as a plain static asset; the
-// client-side logic lives in src/scripts/reservoir-app.js and is
-// bundled by Astro/Vite (imports Chart.js as an npm dependency rather
-// than loading it from a CDN at runtime).
+// in src/styles/reservoir.css and are imported below so Astro/Vite
+// fingerprints the built file (cache-busting on every deploy, same as
+// the script bundle); the client-side logic lives in
+// src/scripts/reservoir-app.js and is bundled by Astro/Vite (imports
+// Chart.js as an npm dependency rather than loading it from a CDN at
+// runtime).
 //
 // Data comes from /api/reservoir?dam=rice|willow, served by a
 // Cloudflare Pages Function (see functions/api/reservoir.js or
 // src/pages/api/reservoir.js) reading from a KV namespace that
 // wvic-scraper-worker populates hourly.
+
+import "../styles/reservoir.css";
 ---
 
 <!DOCTYPE html>
@@ -24,8 +28,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="/reservoir/style.css">
 </head>
 <body>
 
