@@ -140,6 +140,51 @@ import "../styles/reservoir.css";
   </section>
 
 
+  <section class="table-panel" aria-label="Level trend and forecast" id="trend-forecast-panel">
+    <div class="panel-heading">
+      <h2>Level Trend &amp; Forecast</h2>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Window</th>
+            <th>Trend</th>
+            <th>Change</th>
+            <th>Projected Below Max</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>24h</td>
+            <td><span class="gauge-trend-arrow" id="trend-fc-24h-arrow">&mdash;</span> <span id="trend-fc-24h-status">&mdash;</span></td>
+            <td id="trend-fc-24h-change">&mdash;</td>
+            <td id="trend-fc-24h-forecast">&mdash;</td>
+          </tr>
+          <tr>
+            <td>3d</td>
+            <td><span class="gauge-trend-arrow" id="trend-fc-3d-arrow">&mdash;</span> <span id="trend-fc-3d-status">&mdash;</span></td>
+            <td id="trend-fc-3d-change">&mdash;</td>
+            <td id="trend-fc-3d-forecast">&mdash;</td>
+          </tr>
+          <tr>
+            <td>7d</td>
+            <td><span class="gauge-trend-arrow" id="trend-fc-7d-arrow">&mdash;</span> <span id="trend-fc-7d-status">&mdash;</span></td>
+            <td id="trend-fc-7d-change">&mdash;</td>
+            <td id="trend-fc-7d-forecast">&mdash;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="balance-caveat">
+      Projections are a naive linear extrapolation &mdash; they assume the
+      recent trend continues unchanged and don't account for operational
+      changes, precipitation, or evaporation. Treat as directional guidance,
+      not a forecast.
+    </p>
+  </section>
+
+
   <section class="chart-panel" aria-label="Head level and freeboard over time">
     <div class="panel-heading">
       <h2>Head Level &amp; Freeboard</h2>

@@ -259,6 +259,11 @@ main {
 .gauge-trend-arrow.falling { color: var(--rust); }
 .gauge-trend-arrow.steady { color: var(--river); }
 
+.trend-forecast-warning {
+  color: var(--rust);
+  font-weight: 600;
+}
+
 .gauge-trend-detail {
   margin: 6px 0 0;
   font-family: var(--font-mono);

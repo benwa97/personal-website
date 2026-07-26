@@ -130,17 +130,30 @@ function filteredRows(key) {
   return rows.filter((r) => r.datetime.getTime() >= cutoff);
 }
 
-const LEVEL_TREND_WINDOW_MS = 24 * 60 * 60 * 1000;
 const LEVEL_DEADBAND_FT = 0.02; // ignore changes smaller than this as "steady"
 
-function computeLevelTrend(key) {
-  const rows = state.data[key] || [];
+const TREND_WINDOWS = [
+  { key: "24h", hours: 24 },
+  { key: "3d", hours: 72 },
+  { key: "7d", hours: 168 },
+];
+
+const TREND_META = {
+  rising: { arrow: "\u25b2", label: "Rising" },
+  falling: { arrow: "\u25bc", label: "Falling" },
+  steady: { arrow: "\u25cf", label: "Steady" },
+};
+
+// Looks back `windowHours` from the latest reading and reports how much the
+// level/freeboard moved over that window, plus a naive same-length forward
+// projection (i.e. "if the last N hours repeat, where does it end up").
+function computeTrendForWindow(rows, windowHours) {
   if (rows.length === 0) return null;
 
   const latest = rows[rows.length - 1];
-  if (latest.head_level === null) return null;
+  if (latest.head_level === null || latest.feet_below_maximum === null) return null;
 
-  const cutoff = latest.datetime.getTime() - LEVEL_TREND_WINDOW_MS;
+  const cutoff = latest.datetime.getTime() - windowHours * 60 * 60 * 1000;
   if (rows[0].datetime.getTime() > cutoff) return null; // not enough history yet
 
   let reference = rows[0];
@@ -150,21 +163,34 @@ function computeLevelTrend(key) {
       break;
     }
   }
-  if (reference === latest || reference.head_level === null) return null;
+  if (
+    reference === latest ||
+    reference.head_level === null ||
+    reference.feet_below_maximum === null
+  ) {
+    return null;
+  }
 
-  const delta = latest.head_level - reference.head_level;
+  const deltaHead = latest.head_level - reference.head_level;
+  const deltaFbm = latest.feet_below_maximum - reference.feet_below_maximum;
+
   let trend = "steady";
-  if (Math.abs(delta) >= LEVEL_DEADBAND_FT) trend = delta > 0 ? "rising" : "falling";
+  if (Math.abs(deltaHead) >= LEVEL_DEADBAND_FT) trend = deltaHead > 0 ? "rising" : "falling";
 
-  return { trend, delta, referenceTime: reference.datetime };
+  return {
+    trend,
+    deltaHead,
+    projectedFbm: latest.feet_below_maximum + deltaFbm,
+  };
 }
 
 function renderLevelTrend(key) {
+  const rows = state.data[key] || [];
   const arrow = document.getElementById("trend-arrow-head");
   const value = document.getElementById("value-head-trend");
   const detail = document.getElementById("value-head-trend-detail");
 
-  const lt = computeLevelTrend(key);
+  const lt = computeTrendForWindow(rows, 24);
   arrow.classList.remove("rising", "falling", "steady");
 
   if (!lt) {
@@ -174,18 +200,50 @@ function renderLevelTrend(key) {
     return;
   }
 
-  const trendMeta = {
-    rising: { arrow: "\u25b2", label: "Rising" },
-    falling: { arrow: "\u25bc", label: "Falling" },
-    steady: { arrow: "\u25cf", label: "Steady" },
-  }[lt.trend];
-
+  const meta = TREND_META[lt.trend];
   arrow.classList.add(lt.trend);
-  arrow.textContent = trendMeta.arrow;
-  value.textContent = trendMeta.label;
+  arrow.textContent = meta.arrow;
+  value.textContent = meta.label;
 
-  const sign = lt.delta >= 0 ? "+" : "\u2212";
-  detail.textContent = `${sign}${fmt2(Math.abs(lt.delta))} ft over 24h`;
+  const sign = lt.deltaHead >= 0 ? "+" : "\u2212";
+  detail.textContent = `${sign}${fmt2(Math.abs(lt.deltaHead))} ft over 24h`;
+}
+
+function renderTrendForecastRow(windowKey, result) {
+  const arrow = document.getElementById(`trend-fc-${windowKey}-arrow`);
+  const status = document.getElementById(`trend-fc-${windowKey}-status`);
+  const change = document.getElementById(`trend-fc-${windowKey}-change`);
+  const forecast = document.getElementById(`trend-fc-${windowKey}-forecast`);
+
+  arrow.classList.remove("rising", "falling", "steady");
+  forecast.classList.remove("trend-forecast-warning");
+
+  if (!result) {
+    arrow.textContent = "\u2014";
+    status.textContent = "\u2014";
+    change.textContent = "Not enough data yet";
+    forecast.textContent = "\u2014";
+    return;
+  }
+
+  const meta = TREND_META[result.trend];
+  arrow.classList.add(result.trend);
+  arrow.textContent = meta.arrow;
+  status.textContent = meta.label;
+
+  const sign = result.deltaHead >= 0 ? "+" : "\u2212";
+  change.textContent = `${sign}${fmt2(Math.abs(result.deltaHead))} ft`;
+
+  forecast.textContent = `${fmt2(result.projectedFbm)} ft`;
+  // <= 0 means the projection has the lake crossing above maximum elevation.
+  if (result.projectedFbm <= 0) forecast.classList.add("trend-forecast-warning");
+}
+
+function renderTrendForecastPanel(key) {
+  const rows = state.data[key] || [];
+  TREND_WINDOWS.forEach(({ key: windowKey, hours }) => {
+    renderTrendForecastRow(windowKey, computeTrendForWindow(rows, hours));
+  });
 }
 
 function renderGauges(key) {
@@ -550,6 +608,7 @@ function renderCharts(key) {
 
 function renderAll() {
   renderGauges(state.activeDam);
+  renderTrendForecastPanel(state.activeDam);
   renderFlowBalance();
   renderCharts(state.activeDam);
   renderTable(state.activeDam);
