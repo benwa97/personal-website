@@ -318,7 +318,10 @@ function renderTrendForecastRow(windowKey, result) {
   const sign = result.deltaHead >= 0 ? "+" : "\u2212";
   change.textContent = `${sign}${fmt2(Math.abs(result.deltaHead))} ft`;
 
-  forecast.textContent = `${fmt2(result.projectedFbm)} ft`;
+  // Displayed as a negative "water level" reading (0 = max), matching the
+  // chart -- projectedFbm itself stays in the original positive-below-max
+  // convention since that's what the <= 0 warning check below needs.
+  forecast.textContent = `${fmt2(-result.projectedFbm)} ft`;
   // <= 0 means the projection has the lake crossing above maximum elevation.
   if (result.projectedFbm <= 0) forecast.classList.add("trend-forecast-warning");
 }
@@ -336,7 +339,8 @@ function renderGauges(key) {
 
   renderLevelTrend(key);
   document.getElementById("value-flow").textContent = latest ? fmt0(latest.gate_flow) : "\u2014";
-  document.getElementById("value-fbm").textContent = latest ? fmt2(latest.feet_below_maximum) : "\u2014";
+  document.getElementById("value-fbm").textContent =
+    latest && latest.feet_below_maximum !== null ? fmt2(-latest.feet_below_maximum) : "\u2014";
 
   // "As of" = the most recent hour WVIC itself has published.
   document.getElementById("as-of-time").textContent = latest ? fmtDateTime(latest.datetime) : "\u2014";
