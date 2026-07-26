@@ -587,25 +587,28 @@ function renderCharts(key) {
       labels,
       datasets: [
         {
-          label: "Head Level (ft)",
-          data: rows.map((r) => r.head_level),
-          borderColor: color,
-          backgroundColor: color + "22",
+          // Primary series -- below-max is the number an average visitor
+          // actually cares about ("how close is it to the top?"), so it
+          // gets the solid filled line and the primary (left) axis.
+          label: "Below Maximum (ft)",
+          data: rows.map((r) => r.feet_below_maximum),
+          borderColor: "#B5793C",
+          backgroundColor: "#B5793C22",
           borderWidth: 2,
           pointRadius: 0,
           tension: 0.15,
           fill: true,
-          yAxisID: "yLevel",
+          yAxisID: "yFbm",
         },
         {
-          label: "Below Maximum (ft)",
-          data: rows.map((r) => r.feet_below_maximum),
-          borderColor: "#B5793C",
+          label: "Head Level (ft)",
+          data: rows.map((r) => r.head_level),
+          borderColor: color,
           borderWidth: 1.5,
           borderDash: [3, 3],
           pointRadius: 0,
           tension: 0.15,
-          yAxisID: "yFbm",
+          yAxisID: "yLevel",
         },
       ],
     },
@@ -631,18 +634,20 @@ function renderCharts(key) {
           grid: { color: gridColor },
           ticks: { color: tickColor, font: { family: fontFamily, size: 10 } },
         },
-        yLevel: {
+        yFbm: {
           position: "left",
+          // Reversed so it still moves the same visual direction as head
+          // level (rising level = shrinking below-max = line goes up).
+          reverse: true,
           grid: { color: gridColor },
           ticks: { color: tickColor, font: { family: fontFamily, size: 10 } },
-          title: { display: true, text: "ft NGVD 29", color: tickColor, font: { family: fontFamily, size: 10 } },
+          title: { display: true, text: "ft below max", color: tickColor, font: { family: fontFamily, size: 10 } },
         },
-        yFbm: {
+        yLevel: {
           position: "right",
-          reverse: true,
           grid: { display: false },
           ticks: { color: tickColor, font: { family: fontFamily, size: 10 } },
-          title: { display: true, text: "ft below max", color: tickColor, font: { family: fontFamily, size: 10 } },
+          title: { display: true, text: "ft NGVD 29", color: tickColor, font: { family: fontFamily, size: 10 } },
         },
       },
     },
