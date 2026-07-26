@@ -490,6 +490,21 @@ main {
   color: var(--ink);
 }
 
+.beta-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--brass-dim);
+  color: var(--brass);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .range-toggle {
   display: flex;
   border: 1px solid var(--panel-line);
