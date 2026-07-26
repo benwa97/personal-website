@@ -130,7 +130,7 @@ function filteredRows(key) {
   return rows.filter((r) => r.datetime.getTime() >= cutoff);
 }
 
-const LEVEL_DEADBAND_FT = 0.02; // ignore changes smaller than this as "steady"
+const LEVEL_DEADBAND_FT = 0.05; // ignore changes smaller than this as "steady"
 
 const TREND_WINDOWS = [
   { key: "24h", hours: 24 },
@@ -265,6 +265,64 @@ function logForecastBacktest(key) {
 
   console.groupCollapsed(`[reservoir-forecast] ${key}: backtested forecast accuracy`);
   console.table(table);
+  console.groupEnd();
+}
+
+// ---------------------------------------------------------------
+// Noise floor -- empirical grounding for LEVEL_DEADBAND_FT. Compares the
+// base hour-to-hour sensor jitter against the 24h deltas the deadband is
+// actually applied to, so the threshold can be picked from real data
+// instead of a guess.
+// ---------------------------------------------------------------
+
+function summarizeAbsDeltas(values) {
+  if (values.length === 0) return null;
+  const abs = values.map(Math.abs).sort((a, b) => a - b);
+  const n = abs.length;
+  const pick = (p) => abs[Math.min(n - 1, Math.floor(n * p))];
+  return {
+    n,
+    mean: abs.reduce((sum, v) => sum + v, 0) / n,
+    median: pick(0.5),
+    p90: pick(0.9),
+    max: abs[n - 1],
+  };
+}
+
+function logNoiseFloor(key) {
+  const rows = state.data[key] || [];
+  if (rows.length < 2) return;
+
+  // Base sensor/reporting jitter: consecutive ~hourly readings.
+  const hourlyDeltas = [];
+  for (let i = 0; i < rows.length - 1; i++) {
+    const a = rows[i], b = rows[i + 1];
+    if (a.head_level === null || b.head_level === null) continue;
+    const hours = (b.datetime.getTime() - a.datetime.getTime()) / (60 * 60 * 1000);
+    if (hours < 0.5 || hours > 1.5) continue; // skip gaps -- not a clean hourly pair
+    hourlyDeltas.push(b.head_level - a.head_level);
+  }
+
+  // The actual 24h deltas the Level Trend gauge/deadband compare against,
+  // computed at every point in history (same helper the backtest uses).
+  const dailyDeltas = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = computeTrendForWindow(rows, 24, i);
+    if (r) dailyDeltas.push(r.deltaHead);
+  }
+
+  const hourly = summarizeAbsDeltas(hourlyDeltas);
+  const daily = summarizeAbsDeltas(dailyDeltas);
+  if (!hourly || !daily) return;
+
+  const steadyPct = (dailyDeltas.filter((d) => Math.abs(d) < LEVEL_DEADBAND_FT).length / dailyDeltas.length) * 100;
+
+  console.groupCollapsed(`[reservoir-forecast] ${key}: level-change noise floor`);
+  console.table({
+    "hour-to-hour |Δ| (ft)": { samples: hourly.n, mean: hourly.mean.toFixed(3), median: hourly.median.toFixed(3), p90: hourly.p90.toFixed(3), max: hourly.max.toFixed(3) },
+    "24h |Δ| (ft)": { samples: daily.n, mean: daily.mean.toFixed(3), median: daily.median.toFixed(3), p90: daily.p90.toFixed(3), max: daily.max.toFixed(3) },
+  });
+  console.log(`Current deadband (${LEVEL_DEADBAND_FT} ft) calls ${steadyPct.toFixed(0)}% of all 24h windows in history "steady".`);
   console.groupEnd();
 }
 
@@ -742,7 +800,10 @@ function wireRangeToggle() {
 // ---------------------------------------------------------------
 
 function logAllForecastBacktests() {
-  Object.keys(SOURCES).forEach((key) => logForecastBacktest(key));
+  Object.keys(SOURCES).forEach((key) => {
+    logForecastBacktest(key);
+    logNoiseFloor(key);
+  });
 }
 
 async function init() {
