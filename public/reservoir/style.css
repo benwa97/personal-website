@@ -246,6 +246,26 @@ main {
   font-family: var(--font-body);
 }
 
+.gauge-trend-value {
+  font-size: clamp(20px, 3vw, 24px);
+}
+
+.gauge-trend-arrow {
+  font-size: 0.8em;
+  color: var(--ink-soft);
+}
+
+.gauge-trend-arrow.rising { color: var(--moss); }
+.gauge-trend-arrow.falling { color: var(--rust); }
+.gauge-trend-arrow.steady { color: var(--river); }
+
+.gauge-trend-detail {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
 .gauge-ticks {
   margin-top: 14px;
   height: 6px;

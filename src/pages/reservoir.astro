@@ -66,6 +66,34 @@
 
   <p class="as-of">WVIC data as of <span id="as-of-time">&mdash;</span> &middot; page checks WVIC every 20 minutes</p>
 
+  <section class="gauge-row" aria-label="Current readings">
+    <article class="gauge-plate accent" id="gauge-fbm">
+      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+      <p class="gauge-label">Feet Below Maximum</p>
+      <p class="gauge-value"><span id="value-fbm">&mdash;</span><span class="gauge-unit">ft</span></p>
+      <div class="gauge-ticks" aria-hidden="true"></div>
+    </article>
+
+    <article class="gauge-plate" id="gauge-head">
+      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+      <p class="gauge-label">Level Trend</p>
+      <p class="gauge-value gauge-trend-value">
+        <span class="gauge-trend-arrow" id="trend-arrow-head">&mdash;</span>
+        <span id="value-head-trend">&mdash;</span>
+      </p>
+      <p class="gauge-trend-detail" id="value-head-trend-detail">&mdash;</p>
+      <div class="gauge-ticks" aria-hidden="true"></div>
+    </article>
+
+    <article class="gauge-plate" id="gauge-flow">
+      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+      <p class="gauge-label">Gate Flow</p>
+      <p class="gauge-value"><span id="value-flow">&mdash;</span><span class="gauge-unit">cfs</span></p>
+      <div class="gauge-ticks" aria-hidden="true"></div>
+    </article>
+  </section>
+
+
   <section class="balance-panel" id="flow-balance-panel" aria-label="Inflow and outflow balance">
     <div class="panel-heading">
       <h2>Flow Balance</h2>
@@ -107,30 +135,6 @@
       travel time between the two dams. Treat as directional guidance, not a
       precise forecast.
     </p>
-  </section>
-
-
-  <section class="gauge-row" aria-label="Current readings">
-    <article class="gauge-plate" id="gauge-head">
-      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
-      <p class="gauge-label">Head Level</p>
-      <p class="gauge-value"><span id="value-head">&mdash;</span><span class="gauge-unit">ft NGVD&nbsp;29</span></p>
-      <div class="gauge-ticks" aria-hidden="true"></div>
-    </article>
-
-    <article class="gauge-plate" id="gauge-flow">
-      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
-      <p class="gauge-label">Gate Flow</p>
-      <p class="gauge-value"><span id="value-flow">&mdash;</span><span class="gauge-unit">cfs</span></p>
-      <div class="gauge-ticks" aria-hidden="true"></div>
-    </article>
-
-    <article class="gauge-plate accent" id="gauge-fbm">
-      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
-      <p class="gauge-label">Feet Below Maximum</p>
-      <p class="gauge-value"><span id="value-fbm">&mdash;</span><span class="gauge-unit">ft</span></p>
-      <div class="gauge-ticks" aria-hidden="true"></div>
-    </article>
   </section>
 
 

@@ -120,11 +120,69 @@ function filteredRows(key) {
   return rows.filter((r) => r.datetime.getTime() >= cutoff);
 }
 
+const LEVEL_TREND_WINDOW_MS = 24 * 60 * 60 * 1000;
+const LEVEL_DEADBAND_FT = 0.02; // ignore changes smaller than this as "steady"
+
+function computeLevelTrend(key) {
+  const rows = state.data[key] || [];
+  if (rows.length === 0) return null;
+
+  const latest = rows[rows.length - 1];
+  if (latest.head_level === null) return null;
+
+  const cutoff = latest.datetime.getTime() - LEVEL_TREND_WINDOW_MS;
+  if (rows[0].datetime.getTime() > cutoff) return null; // not enough history yet
+
+  let reference = rows[0];
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (rows[i].datetime.getTime() <= cutoff) {
+      reference = rows[i];
+      break;
+    }
+  }
+  if (reference === latest || reference.head_level === null) return null;
+
+  const delta = latest.head_level - reference.head_level;
+  let trend = "steady";
+  if (Math.abs(delta) >= LEVEL_DEADBAND_FT) trend = delta > 0 ? "rising" : "falling";
+
+  return { trend, delta, referenceTime: reference.datetime };
+}
+
+function renderLevelTrend(key) {
+  const arrow = document.getElementById("trend-arrow-head");
+  const value = document.getElementById("value-head-trend");
+  const detail = document.getElementById("value-head-trend-detail");
+
+  const lt = computeLevelTrend(key);
+  arrow.classList.remove("rising", "falling", "steady");
+
+  if (!lt) {
+    arrow.textContent = "\u2014";
+    value.textContent = "\u2014";
+    detail.textContent = "Not enough data yet";
+    return;
+  }
+
+  const trendMeta = {
+    rising: { arrow: "\u25b2", label: "Rising" },
+    falling: { arrow: "\u25bc", label: "Falling" },
+    steady: { arrow: "\u25cf", label: "Steady" },
+  }[lt.trend];
+
+  arrow.classList.add(lt.trend);
+  arrow.textContent = trendMeta.arrow;
+  value.textContent = trendMeta.label;
+
+  const sign = lt.delta >= 0 ? "+" : "\u2212";
+  detail.textContent = `${sign}${fmt2(Math.abs(lt.delta))} ft over 24h`;
+}
+
 function renderGauges(key) {
   const rows = state.data[key] || [];
   const latest = rows[rows.length - 1];
 
-  document.getElementById("value-head").textContent = latest ? fmt2(latest.head_level) : "\u2014";
+  renderLevelTrend(key);
   document.getElementById("value-flow").textContent = latest ? fmt0(latest.gate_flow) : "\u2014";
   document.getElementById("value-fbm").textContent = latest ? fmt2(latest.feet_below_maximum) : "\u2014";
 
