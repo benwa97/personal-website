@@ -147,17 +147,17 @@ const TREND_META = {
 // Looks back `windowHours` from the latest reading and reports how much the
 // level/freeboard moved over that window, plus a naive same-length forward
 // projection (i.e. "if the last N hours repeat, where does it end up").
-function computeTrendForWindow(rows, windowHours) {
-  if (rows.length === 0) return null;
+function computeTrendForWindow(rows, windowHours, asOfIndex = rows.length - 1) {
+  if (rows.length === 0 || asOfIndex < 0 || asOfIndex >= rows.length) return null;
 
-  const latest = rows[rows.length - 1];
+  const latest = rows[asOfIndex];
   if (latest.head_level === null || latest.feet_below_maximum === null) return null;
 
   const cutoff = latest.datetime.getTime() - windowHours * 60 * 60 * 1000;
   if (rows[0].datetime.getTime() > cutoff) return null; // not enough history yet
 
   let reference = rows[0];
-  for (let i = rows.length - 1; i >= 0; i--) {
+  for (let i = asOfIndex; i >= 0; i--) {
     if (rows[i].datetime.getTime() <= cutoff) {
       reference = rows[i];
       break;
@@ -182,6 +182,90 @@ function computeTrendForWindow(rows, windowHours) {
     deltaHead,
     projectedFbm: latest.feet_below_maximum + deltaFbm,
   };
+}
+
+// ---------------------------------------------------------------
+// Forecast backtesting -- the forecast is a pure function of history up
+// to a point in time, so we don't need to log predictions and wait for
+// them to mature. Instead, for every past reading we already have, we
+// recompute what the forecast would have said back then (using only
+// data available as of that reading) and compare it to the reading that
+// actually arrived one window later. Logged to the console rather than
+// shown in the UI -- this is a QA/maintenance tool, not something site
+// visitors need.
+// ---------------------------------------------------------------
+
+const BACKTEST_MATCH_TOLERANCE_MS = 90 * 60 * 1000; // accept an actual reading up to 90min off the exact horizon
+
+// Binary search for the reading closest to `targetMs` (rows sorted ascending).
+function closestRowTo(rows, targetMs) {
+  let lo = 0, hi = rows.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (rows[mid].datetime.getTime() < targetMs) lo = mid + 1;
+    else hi = mid;
+  }
+  if (lo > 0 && Math.abs(rows[lo - 1].datetime.getTime() - targetMs) < Math.abs(rows[lo].datetime.getTime() - targetMs)) {
+    return rows[lo - 1];
+  }
+  return rows[lo];
+}
+
+function backtestWindow(rows, windowHours) {
+  const lastMs = rows[rows.length - 1].datetime.getTime();
+  let n = 0, sumAbsError = 0, sumSquaredError = 0, correctDirection = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const targetMs = rows[i].datetime.getTime() + windowHours * 60 * 60 * 1000;
+    if (targetMs > lastMs) break; // this and every later `i` also hasn't happened yet
+
+    const forecast = computeTrendForWindow(rows, windowHours, i);
+    if (!forecast) continue;
+
+    const actual = closestRowTo(rows, targetMs);
+    if (!actual || actual.head_level === null || actual.feet_below_maximum === null) continue;
+    if (Math.abs(actual.datetime.getTime() - targetMs) > BACKTEST_MATCH_TOLERANCE_MS) continue;
+
+    const actualDeltaHead = actual.head_level - rows[i].head_level;
+    let actualTrend = "steady";
+    if (Math.abs(actualDeltaHead) >= LEVEL_DEADBAND_FT) actualTrend = actualDeltaHead > 0 ? "rising" : "falling";
+
+    const error = actual.feet_below_maximum - forecast.projectedFbm;
+    n++;
+    sumAbsError += Math.abs(error);
+    sumSquaredError += error * error;
+    if (actualTrend === forecast.trend) correctDirection++;
+  }
+
+  if (n === 0) return null;
+  return {
+    sampleCount: n,
+    meanAbsErrorFt: sumAbsError / n,
+    rmseFt: Math.sqrt(sumSquaredError / n),
+    directionAccuracyPct: (correctDirection / n) * 100,
+  };
+}
+
+function logForecastBacktest(key) {
+  const rows = state.data[key] || [];
+  if (rows.length === 0) return;
+
+  const table = {};
+  TREND_WINDOWS.forEach(({ key: windowKey, hours }) => {
+    const r = backtestWindow(rows, hours);
+    table[windowKey] = r
+      ? {
+          samples: r.sampleCount,
+          "mean abs error (ft)": r.meanAbsErrorFt.toFixed(3),
+          "rmse (ft)": r.rmseFt.toFixed(3),
+          "direction correct": `${r.directionAccuracyPct.toFixed(0)}%`,
+        }
+      : { samples: 0, "mean abs error (ft)": "—", "rmse (ft)": "—", "direction correct": "—" };
+  });
+
+  console.groupCollapsed(`[reservoir-forecast] ${key}: backtested forecast accuracy`);
+  console.table(table);
+  console.groupEnd();
 }
 
 function renderLevelTrend(key) {
@@ -645,12 +729,17 @@ function wireRangeToggle() {
 // Boot
 // ---------------------------------------------------------------
 
+function logAllForecastBacktests() {
+  Object.keys(SOURCES).forEach((key) => logForecastBacktest(key));
+}
+
 async function init() {
   wireTabs();
   wireRangeToggle();
   try {
     await loadAll();
     renderAll();
+    logAllForecastBacktests();
   } catch (err) {
     console.error(err);
     document.getElementById("freshness-label").textContent = "Failed to load data";
@@ -661,6 +750,7 @@ async function init() {
     try {
       await loadAll();
       renderAll();
+      logAllForecastBacktests();
     } catch (err) {
       console.error("[reservoir-gauge] refresh failed:", err);
     }
