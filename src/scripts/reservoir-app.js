@@ -51,7 +51,17 @@ function parseSiteDatetime(s) {
 // ---------------------------------------------------------------
 
 async function loadDam(key) {
-  const res = await fetch(`/api/reservoir?dam=${key}`, { cache: "no-store" });
+  let res = await fetch(`/api/reservoir?dam=${key}`, { cache: "no-store" });
+
+  // The real endpoint is a Cloudflare Pages Function (functions/api/reservoir.js),
+  // which `astro dev` doesn't serve -- fall back to local fixtures so the page is
+  // visible while developing. import.meta.env.DEV is statically replaced with
+  // `false` in production builds, so this whole branch is dead-code-eliminated
+  // and never ships.
+  if (import.meta.env.DEV && !res.ok) {
+    res = await fetch(`/reservoir/mock/${key}.json`, { cache: "no-store" });
+  }
+
   if (!res.ok) throw new Error(`Could not load data for ${key} (${res.status})`);
   const raw = await res.json();
 
