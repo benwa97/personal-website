@@ -2,21 +2,15 @@
 // src/pages/reservoir.astro
 //
 // The gauge-station dashboard, ported into an Astro page. Styles live
-// in src/styles/reservoir.css and are imported below so Astro/Vite
-// fingerprints the built file (cache-busting on every deploy, same as
-// the script bundle); the client-side logic lives in
-// src/scripts/reservoir-app.js and is bundled by Astro/Vite (imports
-// Chart.js as an npm dependency rather than loading it from a CDN at
-// runtime).
+// in /public/reservoir/style.css as a plain static asset; the
+// client-side logic lives in src/scripts/reservoir-app.js and is
+// bundled by Astro/Vite (imports Chart.js as an npm dependency rather
+// than loading it from a CDN at runtime).
 //
 // Data comes from /api/reservoir?dam=rice|willow, served by a
 // Cloudflare Pages Function (see functions/api/reservoir.js or
 // src/pages/api/reservoir.js) reading from a KV namespace that
 // wvic-scraper-worker populates hourly.
-
-import "../styles/reservoir.css";
-
-const today = new Date();
 ---
 
 <!DOCTYPE html>
@@ -24,12 +18,18 @@ const today = new Date();
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reservoir Gauge — Tomahawk, WI</title>
-    <meta name="description" content="Hourly tracker for the reservoirs near Tomahawk, WI, built from data published by WVIC. Not affiliated with WVIC.">
+  <title>Reservoir Gauge — Rice &amp; Willow Reservoirs, Tomahawk WI</title>
+  <meta name="description" content="Independent hourly head level, gate flow, and freeboard tracker for the Rice and Willow reservoirs near Tomahawk, WI, built from data published by WVIC. Not affiliated with WVIC.">
+
+  <link rel="icon" type="image/svg+xml" href="/reservoir/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="/reservoir/favicon.ico">
+  <link rel="apple-touch-icon" href="/reservoir/apple-touch-icon.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/reservoir/style.css">
 </head>
 <body>
 
@@ -39,11 +39,7 @@ const today = new Date();
   <div class="header-inner">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 40 40" width="34" height="34">
-          <path d="M2 24 Q10 16 20 24 T38 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-          <path d="M2 31 Q10 23 20 31 T38 31" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity="0.55"/>
-          <path d="M6 12 L20 3 L34 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <img src="/reservoir/favicon.svg" width="34" height="34" alt="">
       </span>
       <div class="brand-text">
         <p class="eyebrow">Rice &amp; Willow Reservoirs &middot; Tomahawk, WI</p>
@@ -68,40 +64,7 @@ const today = new Date();
 
 <main id="main">
 
-  <p class="as-of">WVIC data as of <span id="as-of-time">&mdash;</span></p>
-
-  <div class="level-alert" id="level-alert" role="alert" hidden>
-    <span class="level-alert-icon" aria-hidden="true">&#9888;</span>
-    <span id="level-alert-text">&mdash;</span>
-  </div>
-
-  <section class="gauge-row" aria-label="Current readings">
-    <article class="gauge-plate accent" id="gauge-fbm">
-      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
-      <p class="gauge-label">Water Level</p>
-      <p class="gauge-value"><span id="value-fbm">&mdash;</span><span class="gauge-unit">ft</span></p>
-      <div class="gauge-ticks" aria-hidden="true"></div>
-    </article>
-
-    <article class="gauge-plate" id="gauge-head">
-      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
-      <p class="gauge-label">Level Trend</p>
-      <p class="gauge-value gauge-trend-value">
-        <span class="gauge-trend-arrow" id="trend-arrow-head">&mdash;</span>
-        <span id="value-head-trend">&mdash;</span>
-      </p>
-      <p class="gauge-trend-detail" id="value-head-trend-detail">&mdash;</p>
-      <div class="gauge-ticks" aria-hidden="true"></div>
-    </article>
-
-    <article class="gauge-plate" id="gauge-flow">
-      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
-      <p class="gauge-label">Gate Flow</p>
-      <p class="gauge-value"><span id="value-flow">&mdash;</span><span class="gauge-unit">cfs</span></p>
-      <div class="gauge-ticks" aria-hidden="true"></div>
-    </article>
-  </section>
-
+  <p class="as-of">WVIC data as of <span id="as-of-time">&mdash;</span> &middot; page checks WVIC every 20 minutes</p>
 
   <section class="balance-panel" id="flow-balance-panel" aria-label="Inflow and outflow balance">
     <div class="panel-heading">
@@ -139,7 +102,7 @@ const today = new Date();
     </div>
 
     <p class="balance-caveat">
-      Inflow data only reflects Willow Reservoir's release dam upstream &mdash;
+      Inflow is estimated from Willow Reservoir's release one dam upstream &mdash;
       it doesn't account for other tributaries, precipitation, evaporation, or
       travel time between the two dams. Treat as directional guidance, not a
       precise forecast.
@@ -147,54 +110,33 @@ const today = new Date();
   </section>
 
 
-  <section class="table-panel" aria-label="Level trend and forecast" id="trend-forecast-panel">
-    <div class="panel-heading">
-      <h2>Level Trend &amp; Forecast <span class="beta-tag">Beta</span></h2>
-    </div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>Window</th>
-            <th>Trend</th>
-            <th>Change</th>
-            <th>Projected Water Level</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>24h</td>
-            <td><span class="gauge-trend-arrow" id="trend-fc-24h-arrow">&mdash;</span> <span id="trend-fc-24h-status">&mdash;</span></td>
-            <td id="trend-fc-24h-change">&mdash;</td>
-            <td id="trend-fc-24h-forecast">&mdash;</td>
-          </tr>
-          <tr>
-            <td>3d</td>
-            <td><span class="gauge-trend-arrow" id="trend-fc-3d-arrow">&mdash;</span> <span id="trend-fc-3d-status">&mdash;</span></td>
-            <td id="trend-fc-3d-change">&mdash;</td>
-            <td id="trend-fc-3d-forecast">&mdash;</td>
-          </tr>
-          <tr>
-            <td>7d</td>
-            <td><span class="gauge-trend-arrow" id="trend-fc-7d-arrow">&mdash;</span> <span id="trend-fc-7d-status">&mdash;</span></td>
-            <td id="trend-fc-7d-change">&mdash;</td>
-            <td id="trend-fc-7d-forecast">&mdash;</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="balance-caveat">
-      Projections are a naive linear extrapolation &mdash; they assume the
-      recent trend continues unchanged and don't account for operational
-      changes, precipitation, or evaporation. Treat as directional guidance,
-      not a forecast.
-    </p>
+  <section class="gauge-row" aria-label="Current readings">
+    <article class="gauge-plate" id="gauge-head">
+      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+      <p class="gauge-label">Head Level</p>
+      <p class="gauge-value"><span id="value-head">&mdash;</span><span class="gauge-unit">ft NGVD&nbsp;29</span></p>
+      <div class="gauge-ticks" aria-hidden="true"></div>
+    </article>
+
+    <article class="gauge-plate" id="gauge-flow">
+      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+      <p class="gauge-label">Gate Flow</p>
+      <p class="gauge-value"><span id="value-flow">&mdash;</span><span class="gauge-unit">cfs</span></p>
+      <div class="gauge-ticks" aria-hidden="true"></div>
+    </article>
+
+    <article class="gauge-plate accent" id="gauge-fbm">
+      <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+      <p class="gauge-label">Feet Below Maximum</p>
+      <p class="gauge-value"><span id="value-fbm">&mdash;</span><span class="gauge-unit">ft</span></p>
+      <div class="gauge-ticks" aria-hidden="true"></div>
+    </article>
   </section>
 
 
-  <section class="chart-panel" aria-label="Current water level over time">
+  <section class="chart-panel" aria-label="Head level and freeboard over time">
     <div class="panel-heading">
-      <h2>Water Level</h2>
+      <h2>Head Level &amp; Freeboard</h2>
       <div class="range-toggle" role="group" aria-label="Time range">
         <button data-range="7" class="range-btn is-active">7d</button>
         <button data-range="30" class="range-btn">30d</button>
@@ -242,6 +184,7 @@ const today = new Date();
   <p>
     Source data collected periodically from
     <a href="https://www.wvic.com/Content/Data--Reports.cfm" target="_blank" rel="noopener">wvic.com</a>.
+    Authorized maximum elevations from WVIC's published Reservoir Reports.
     Data marked provisional, subject to revision.
   </p>
   <p class="disclaimer">
@@ -251,9 +194,6 @@ const today = new Date();
     may be delayed, incomplete, or inaccurate &mdash; for authoritative,
     official information, refer directly to
     <a href="https://www.wvic.com" target="_blank" rel="noopener">wvic.com</a>.
-  </p>
-  <p class="copyright">
-    &copy; {today.getFullYear()} <a href="https://benwa.dev">benwa.dev</a>
   </p>
 </footer>
 
