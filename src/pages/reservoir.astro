@@ -27,6 +27,10 @@ const today = new Date();
   <title>Reservoir Gauge — Tomahawk, WI</title>
     <meta name="description" content="Hourly tracker for the reservoirs near Tomahawk, WI, built from data published by WVIC. Not affiliated with WVIC.">
 
+  <link rel="icon" href="/reservoir/favicon.ico" sizes="32x32">
+  <link rel="icon" type="image/svg+xml" href="/reservoir/favicon.svg">
+  <link rel="apple-touch-icon" href="/reservoir/apple-touch-icon.png">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -38,13 +42,8 @@ const today = new Date();
 <header class="site-header">
   <div class="header-inner">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 40 40" width="34" height="34">
-          <path d="M2 24 Q10 16 20 24 T38 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-          <path d="M2 31 Q10 23 20 31 T38 31" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity="0.55"/>
-          <path d="M6 12 L20 3 L34 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </span>
+      <img class="brand-mark" src="/reservoir/favicon.svg" width="34" height="34" alt="">
+
       <div class="brand-text">
         <p class="eyebrow">Rice &amp; Willow Reservoirs &middot; Tomahawk, WI</p>
         <h1>Reservoir Gauge</h1>
